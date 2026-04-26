@@ -1,7 +1,11 @@
 #include <SFML/Graphics.hpp>
+#include <algorithm>
+#include <cmath>
 #include <map>
+#include <vector>
 #include "Enemy.h"
 #include "Tower.h"
+#include "Arrow.h"
 
 const int tileSize = 64;
 const int cols = 21, rows = 12;
@@ -74,19 +78,27 @@ int main() {
                 {tileCenter(10, 2), tileCenter(10, 6), tileCenter(17, 6)});
 
     // tower and archer
-    sf::Texture towerTexture, archerTexture;
+    sf::Texture towerTexture, archerTexture, archerShootTexture, arrowTexture;
     towerTexture.loadFromFile("assets/Buildings/Red Buildings/Tower.png");
     archerTexture.loadFromFile("assets/Units/Red Units/Archer/Archer_Idle.png");
+    archerShootTexture.loadFromFile("assets/Units/Red Units/Archer/Archer_Shoot.png");
+    arrowTexture.loadFromFile("assets/Units/Red Units/Archer/Arrow.png");
     std::map<int, Tower> towers;
+    std::vector<Arrow> arrows;
 
     // tower preview
     sf::Sprite previewSprite(towerTexture);
     Tower::configure(previewSprite, towerTexture);
     previewSprite.setColor(sf::Color(255, 255, 255, 120));
 
+    sf::FloatRect castleBounds = castle.getGlobalBounds();
+    castleBounds.position -= sf::Vector2f(1.f, 1.f);
+    castleBounds.size += sf::Vector2f(2.f, 2.f);
     auto canPlaceTower = [&](int col, int row) -> bool {
+        sf::FloatRect tileBounds({float(col * tileSize), float(row * tileSize)},
+                                 {float(tileSize), float(tileSize)});
         return col >= 0 && col < cols && row >= 0 && row < rows && !pathMap[row][col] &&
-               !towers.count(towerKey(col, row));
+               !towers.count(towerKey(col, row)) && !castleBounds.findIntersection(tileBounds);
     };
 
     int hoverCol = -1, hoverRow = -1;
@@ -111,17 +123,36 @@ int main() {
                     int col = int(click.x) / tileSize;
                     int row = int(click.y) / tileSize;
                     if (canPlaceTower(col, row)) {
-                        towers.emplace(towerKey(col, row), Tower(towerTexture, archerTexture,
-                                                                 tileBottom(col, row)));
+                        towers.try_emplace(towerKey(col, row), towerTexture, archerTexture,
+                                           archerShootTexture, tileBottom(col, row));
                     }
                 }
             }
         }
 
         enemy.update(dt);
+
         for (auto& [_, tower] : towers) {
-            tower.update(dt, enemy.getPosition());
+            tower.update(dt, enemy.getPosition(), enemy.getVelocity());
+            if (tower.didFire())
+                arrows.emplace_back(arrowTexture, tower.archerPosition(),
+                                    tower.fireDirection() * Tower::kArrowSpeed);
         }
+
+        for (auto& arrow : arrows) {
+            arrow.update(dt);
+            if (!arrow.wasHit()) {
+                sf::Vector2f diff = arrow.getPosition() - enemy.getPosition();
+                if (std::hypot(diff.x, diff.y) < 20.f && !enemy.isDead()) {
+                    enemy.takeDamage(1);
+                    arrow.markHit();
+                }
+            }
+        }
+
+        arrows.erase(std::remove_if(arrows.begin(), arrows.end(),
+                                    [](const Arrow& a) { return a.isExpired(); }),
+                     arrows.end());
 
         window.clear();
         for (int i = 0; i < rows; i++) {
@@ -138,6 +169,10 @@ int main() {
 
         for (auto& [_, tower] : towers) {
             tower.draw(window);
+        }
+
+        for (const auto& arrow : arrows) {
+            arrow.draw(window);
         }
 
         if (canPlaceTower(hoverCol, hoverRow)) {
