@@ -73,9 +73,10 @@ int main() {
     Enemy enemy(enemyTexture, tileCenter(0, 2),
                 {tileCenter(10, 2), tileCenter(10, 6), tileCenter(17, 6)});
 
-    // tower
-    sf::Texture towerTexture;
+    // tower and archer
+    sf::Texture towerTexture, archerTexture;
     towerTexture.loadFromFile("assets/Buildings/Red Buildings/Tower.png");
+    archerTexture.loadFromFile("assets/Units/Red Units/Archer/Archer_Idle.png");
     std::map<int, Tower> towers;
 
     // tower preview
@@ -110,14 +111,17 @@ int main() {
                     int col = int(click.x) / tileSize;
                     int row = int(click.y) / tileSize;
                     if (canPlaceTower(col, row)) {
-                        towers.emplace(towerKey(col, row),
-                                       Tower{towerTexture, tileBottom(col, row)});
+                        towers.emplace(towerKey(col, row), Tower(towerTexture, archerTexture,
+                                                                 tileBottom(col, row)));
                     }
                 }
             }
         }
 
         enemy.update(dt);
+        for (auto& [_, tower] : towers) {
+            tower.update(dt, enemy.getPosition());
+        }
 
         window.clear();
         for (int i = 0; i < rows; i++) {

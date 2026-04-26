@@ -36,6 +36,7 @@ class Enemy {
     void draw(sf::RenderWindow& window) { window.draw(m_sprite); }
 
     bool reachedEnd() const { return m_wpIdx >= (int)m_waypoints.size(); }
+    sf::Vector2f getPosition() const { return m_pos; }
 
   private:
     sf::Sprite m_sprite;
