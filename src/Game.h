@@ -21,6 +21,7 @@ class Game {
     void spawnEnemies(float dt);
     Enemy* nearestEnemy(sf::Vector2f position);
     bool canPlaceTower(int col, int row) const;
+    void updateGoldText();
 
     sf::RenderWindow m_window;
     Assets m_assets;
@@ -28,11 +29,14 @@ class Game {
     sf::Sprite m_path;
     sf::Sprite m_castle;
     sf::Sprite m_preview;
+    sf::Sprite m_goldIcon;
+    sf::Text m_goldText;
     HpBar m_hpBar;
     std::vector<Enemy> m_enemies;
     std::map<int, Tower> m_towers;
     std::vector<Arrow> m_arrows;
     int m_castleHp = 0;
+    int m_gold = 100;
     float m_spawnTimer = 0.f;
     int m_castleMinCol = 0;
     int m_castleMaxCol = 0;

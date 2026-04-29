@@ -15,4 +15,6 @@ struct Assets {
     sf::Texture arrow;
     sf::Texture hpBarBase;
     sf::Texture hpBarFill;
+    sf::Texture goldIcon;
+    sf::Font uiFont;
 };

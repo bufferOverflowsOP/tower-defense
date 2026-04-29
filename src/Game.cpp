@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cmath>
 #include <optional>
+#include <string>
 #include "GameConfig.h"
 
 namespace {
@@ -42,6 +43,8 @@ std::vector<sf::Vector2f> enemyWaypoints() {
 
 constexpr float kSpawnDelay = 1.f;
 constexpr float kArrowHitRadius = 20.f;
+constexpr int kTowerCost = 25;
+constexpr int kEnemyReward = 10;
 
 }  // namespace
 
@@ -52,6 +55,8 @@ Game::Game()
       m_path(m_assets.path),
       m_castle(m_assets.castle),
       m_preview(m_assets.tower),
+      m_goldIcon(m_assets.goldIcon),
+      m_goldText(m_assets.uiFont, "", 24),
       m_hpBar(m_assets.hpBarBase, m_assets.hpBarFill),
       m_castleHp(cfg::castleMaxHp),
       m_spawnTimer(kSpawnDelay) {
@@ -70,6 +75,14 @@ Game::Game()
 
     Tower::configure(m_preview, m_assets.tower);
     m_preview.setColor(sf::Color(255, 255, 255, 120));
+
+    m_goldIcon.setScale({0.5f, 0.5f});
+    m_goldIcon.setPosition({180.f, 10.f});
+    m_goldText.setFillColor(sf::Color(255, 230, 90));
+    m_goldText.setOutlineColor(sf::Color(45, 25, 12));
+    m_goldText.setOutlineThickness(2.f);
+    m_goldText.setPosition({216.f, 8.f});
+    updateGoldText();
 
     auto castleBounds = m_castle.getGlobalBounds();
     m_castleMinCol = int(castleBounds.position.x) / cfg::tileSize;
@@ -105,9 +118,11 @@ void Game::handleEvents() {
                 sf::Vector2f click = m_window.mapPixelToCoords(mousePress->position);
                 int col = int(click.x) / cfg::tileSize;
                 int row = int(click.y) / cfg::tileSize;
-                if (canPlaceTower(col, row)) {
+                if (m_gold >= kTowerCost && canPlaceTower(col, row)) {
                     m_towers.try_emplace(towerKey(col, row), m_assets.tower, m_assets.archer,
                                          m_assets.archerShoot, tileBottom(col, row));
+                    m_gold -= kTowerCost;
+                    updateGoldText();
                 }
             }
         }
@@ -127,8 +142,13 @@ void Game::update(float dt) {
     }
 
     m_enemies.erase(std::remove_if(m_enemies.begin(), m_enemies.end(),
-                                   [](const Enemy& enemy) {
-                                       return enemy.isDead() || enemy.didAttack();
+                                   [this](const Enemy& enemy) {
+                                       if (enemy.isDead()) {
+                                           m_gold += kEnemyReward;
+                                           updateGoldText();
+                                           return true;
+                                       }
+                                       return false;
                                    }),
                     m_enemies.end());
 
@@ -205,6 +225,8 @@ void Game::draw() {
         enemy.draw(m_window);
     }
     m_hpBar.draw(m_window);
+    m_window.draw(m_goldIcon);
+    m_window.draw(m_goldText);
     m_window.display();
 }
 
@@ -239,4 +261,8 @@ bool Game::canPlaceTower(int col, int row) const {
            pathLayout[row][col] != 'X' && !m_towers.count(towerKey(col, row)) &&
            !(col >= m_castleMinCol && col <= m_castleMaxCol && row >= m_castleMinRow &&
              row <= m_castleMaxRow);
+}
+
+void Game::updateGoldText() {
+    m_goldText.setString(std::to_string(m_gold));
 }

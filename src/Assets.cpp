@@ -12,5 +12,7 @@ Assets::Assets() {
     arrow.loadFromFile("assets/Units/Red Units/Archer/Arrow.png");
     hpBarBase.loadFromFile("assets/UI Elements/UI Elements/Bars/BigBar_Base.png");
     hpBarFill.loadFromFile("assets/UI Elements/UI Elements/Bars/BigBar_Fill.png");
+    goldIcon.loadFromFile("assets/UI Elements/UI Elements/Icons/Icon_03.png");
+    uiFont.openFromFile("assets/Fonts/MedievalSharp-Regular.ttf");
     hpBarFill.setRepeated(true);
 }
