@@ -34,8 +34,7 @@ class Tower {
 
         if ((enemyPos - towerPos).length() < m_range && m_cooldownTimer >= m_cooldown) {
             m_didFire = true;
-            m_fireDirection = computeAimDirection(enemyPos, enemyVelocity,
-                                                  m_archer.getPosition());
+            m_fireDirection = computeAimDirection(enemyPos, enemyVelocity, archerPosition());
             m_cooldownTimer = 0.f;
             m_isShooting = true;
             m_shootTimer = 0.f;
@@ -58,24 +57,25 @@ class Tower {
 
     void draw(sf::RenderWindow& window) {
         window.draw(m_sprite);
-        if (m_isShooting)
-            window.draw(m_archerShoot);
-        else
-            window.draw(m_archer);
+        window.draw(m_isShooting ? m_archerShoot : m_archer);
     }
 
     bool didFire() const { return m_didFire; }
     sf::Vector2f fireDirection() const { return m_fireDirection; }
-    sf::Vector2f archerPosition() const { return m_archer.getPosition(); }
+    sf::Vector2f archerPosition() const {
+        const sf::Sprite& activeArcher = m_isShooting ? m_archerShoot : m_archer;
+        return activeArcher.getTransform().transformPoint({120.f, 100.f});
+    }
 
     static constexpr float kArrowSpeed = 400.f;
 
   private:
     static sf::Vector2f computeAimDirection(sf::Vector2f enemyPos, sf::Vector2f enemyVel,
-                                            sf::Vector2f towerPos) {
-        // TODO: this is a very naive implementation which assumes the enemy will keep moving in the same direction and speed. add quadratic formula solution for better aiming
-        float t = (enemyPos - towerPos).length() / kArrowSpeed;
-        return (enemyPos + enemyVel * t - towerPos).normalized();
+                                            sf::Vector2f shotPos) {
+        // TODO: this is a very naive implementation which assumes the enemy will keep moving
+        // in the same direction and speed. add quadratic formula solution for better aiming
+        float t = (enemyPos - shotPos).length() / kArrowSpeed;
+        return (enemyPos + enemyVel * t - shotPos).normalized();
     }
 
   private:

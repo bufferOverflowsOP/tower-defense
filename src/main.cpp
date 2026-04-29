@@ -45,13 +45,6 @@ int main() {
     window.setVerticalSyncEnabled(true);
     window.setFramerateLimit(60);
 
-    int pathMap[rows][cols]{};
-    for (int i = 0; i < rows; i++) {
-        for (int j = 0; j < cols; j++) {
-            pathMap[i][j] = (pathLayout[i][j] == 'X') ? 1 : 0;
-        }
-    }
-
     // grass and path (path is just darker version of grass)
     // TODO: add auto-tiling for grass/path edge
     sf::Texture grassTexture, pathTexture;
@@ -72,9 +65,10 @@ int main() {
     castle.setPosition({cols * tileSize - size.y / 2.f, 6 * tileSize + tileSize / 2.f});
 
     // enemy
-    sf::Texture enemyTexture;
+    sf::Texture enemyTexture, enemyAttackTexture;
     enemyTexture.loadFromFile("assets/Units/Black Units/Warrior/Warrior_Run.png");
-    Enemy enemy(enemyTexture, tileCenter(0, 2),
+    enemyAttackTexture.loadFromFile("assets/Units/Black Units/Warrior/Warrior_Attack1.png");
+    Enemy enemy(enemyTexture, enemyAttackTexture, tileCenter(0, 2),
                 {tileCenter(10, 2), tileCenter(10, 6), tileCenter(17, 6)});
 
     // tower and archer
@@ -91,14 +85,50 @@ int main() {
     Tower::configure(previewSprite, towerTexture);
     previewSprite.setColor(sf::Color(255, 255, 255, 120));
 
-    sf::FloatRect castleBounds = castle.getGlobalBounds();
-    castleBounds.position -= sf::Vector2f(1.f, 1.f);
-    castleBounds.size += sf::Vector2f(2.f, 2.f);
+    int castleHp = 10;
+    const int castleMaxHp = 10;
+    sf::Texture hpBarBaseTexture, hpBarFillTexture;
+    hpBarBaseTexture.loadFromFile("assets/UI Elements/UI Elements/Bars/BigBar_Base.png");
+    hpBarFillTexture.loadFromFile("assets/UI Elements/UI Elements/Bars/BigBar_Fill.png");
+    hpBarFillTexture.setRepeated(true);
+
+    constexpr sf::Vector2f hpBarPos{12.f, 12.f};
+    constexpr float hpBarScale = 0.5f;
+    constexpr float hpBarWidth = 160.f;
+    constexpr int hpBarCapWidthPx = 24;
+    constexpr int hpBarCenterWidthPx = 64;
+    constexpr int hpBarHeightPx = 64;
+    constexpr float hpBarCapWidth = hpBarCapWidthPx * hpBarScale;
+    constexpr float hpBarCenterWidth = hpBarWidth - hpBarCapWidth * 2.f;
+    constexpr float hpBarFillInset = 6.f;
+    constexpr float hpBarFillWidth = hpBarWidth - hpBarFillInset * 2.f;
+
+    sf::Sprite hpBarLeft(hpBarBaseTexture, {{40, 0}, {hpBarCapWidthPx, hpBarHeightPx}});
+    hpBarLeft.setPosition(hpBarPos);
+    hpBarLeft.setScale({hpBarScale, hpBarScale});
+
+    sf::Sprite hpBarCenter(hpBarBaseTexture, {{128, 0}, {hpBarCenterWidthPx, hpBarHeightPx}});
+    hpBarCenter.setPosition(hpBarPos + sf::Vector2f{hpBarCapWidth, 0.f});
+    hpBarCenter.setScale({hpBarCenterWidth / hpBarCenterWidthPx, hpBarScale});
+
+    sf::Sprite hpBarRight(hpBarBaseTexture, {{256, 0}, {hpBarCapWidthPx, hpBarHeightPx}});
+    hpBarRight.setPosition(hpBarPos + sf::Vector2f{hpBarCapWidth + hpBarCenterWidth, 0.f});
+    hpBarRight.setScale({hpBarScale, hpBarScale});
+
+    sf::Sprite hpBarFill(hpBarFillTexture);
+    hpBarFill.setScale({1.f, hpBarScale});
+    hpBarFill.setPosition(hpBarPos + sf::Vector2f{hpBarFillInset, 0.f});
+
+    auto castleCB = castle.getGlobalBounds();
+    int castleMinCol = int(castleCB.position.x) / tileSize;
+    int castleMaxCol = int(castleCB.position.x + castleCB.size.x - 1.f) / tileSize;
+    int castleMinRow = int(castleCB.position.y) / tileSize;
+    int castleMaxRow = int(castleCB.position.y + castleCB.size.y) / tileSize;
     auto canPlaceTower = [&](int col, int row) -> bool {
-        sf::FloatRect tileBounds({float(col * tileSize), float(row * tileSize)},
-                                 {float(tileSize), float(tileSize)});
-        return col >= 0 && col < cols && row >= 0 && row < rows && !pathMap[row][col] &&
-               !towers.count(towerKey(col, row)) && !castleBounds.findIntersection(tileBounds);
+        return col >= 0 && col < cols && row >= 0 && row < rows &&
+               pathLayout[row][col] != 'X' && !towers.count(towerKey(col, row)) &&
+               !(col >= castleMinCol && col <= castleMaxCol && row >= castleMinRow &&
+                 row <= castleMaxRow);
     };
 
     int hoverCol = -1, hoverRow = -1;
@@ -132,6 +162,17 @@ int main() {
 
         enemy.update(dt);
 
+        if (enemy.didAttack()) {
+            castleHp = std::max(0, castleHp - 1);
+            if (castleHp == 0) window.close();
+        } else if (enemy.isDead()) {
+            enemy.reset();
+            arrows.clear();
+        }
+
+        float hpRatio = float(castleHp) / castleMaxHp;
+        hpBarFill.setTextureRect({{0, 0}, {int(hpBarFillWidth * hpRatio), hpBarHeightPx}});
+
         for (auto& [_, tower] : towers) {
             tower.update(dt, enemy.getPosition(), enemy.getVelocity());
             if (tower.didFire())
@@ -160,7 +201,7 @@ int main() {
                 sf::Vector2f pos(float(j * tileSize), float(i * tileSize));
                 grassSprite.setPosition(pos);
                 window.draw(grassSprite);
-                if (pathMap[i][j]) {
+                if (pathLayout[i][j] == 'X') {
                     pathSprite.setPosition(pos);
                     window.draw(pathSprite);
                 }
@@ -182,6 +223,10 @@ int main() {
 
         window.draw(castle);
         enemy.draw(window);
+        window.draw(hpBarLeft);
+        window.draw(hpBarCenter);
+        window.draw(hpBarRight);
+        window.draw(hpBarFill);
         window.display();
     }
 }
