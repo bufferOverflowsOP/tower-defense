@@ -10,10 +10,10 @@ class Tower {
     }
 
     static void configureArcher(sf::Sprite& s, sf::Vector2f pos) {
-        s.setTextureRect({{0, 0}, {192, 192}});
-        s.setOrigin({96.f, 192.f});
-        s.setScale({kScale, 0.6f});
-        s.setPosition(pos - sf::Vector2f(0.f, 40.f));
+        s.setTextureRect({{0, 0}, {kArcherFrameSize, kArcherFrameSize}});
+        s.setOrigin({kArcherFrameSize / 2.f, float(kArcherFrameSize)});
+        s.setScale({kArcherScale, kArcherScale});
+        s.setPosition(pos - sf::Vector2f(0.f, kArcherYOffset));
     }
 
     Tower(const sf::Texture& texture, const sf::Texture& archerTexture,
@@ -32,7 +32,7 @@ class Tower {
 
         sf::Vector2f towerPos = m_sprite.getPosition();
 
-        if ((enemyPos - towerPos).length() < m_range && m_cooldownTimer >= m_cooldown) {
+        if ((enemyPos - towerPos).length() < kRange && m_cooldownTimer >= kCooldown) {
             m_didFire = true;
             m_fireDirection = computeAimDirection(enemyPos, enemyVelocity, archerPosition());
             m_cooldownTimer = 0.f;
@@ -42,17 +42,18 @@ class Tower {
 
         if (m_isShooting) {
             m_shootTimer += dt;
-            int newFrame = static_cast<int>(m_shootTimer / m_shootFrameDuration);
-            if (newFrame >= 8) {
+            int newFrame = static_cast<int>(m_shootTimer / kShootFrameDuration);
+            if (newFrame >= kShootFrames) {
                 m_isShooting = false;
             } else {
-                m_archerShoot.setTextureRect({{newFrame * 192, 0}, {192, 192}});
+                m_archerShoot.setTextureRect(
+                    {{newFrame * kArcherFrameSize, 0}, {kArcherFrameSize, kArcherFrameSize}});
             }
         }
 
         float dir = (enemyPos.x < towerPos.x) ? -1.f : 1.f;
-        m_archer.setScale({dir * kScale, 0.6f});
-        m_archerShoot.setScale({dir * kScale, 0.6f});
+        m_archer.setScale({dir * kArcherScale, kArcherScale});
+        m_archerShoot.setScale({dir * kArcherScale, kArcherScale});
     }
 
     void draw(sf::RenderWindow& window) {
@@ -79,13 +80,17 @@ class Tower {
     }
 
   private:
-    static constexpr float kScale = 0.6f;
+    static constexpr int kArcherFrameSize = 192;
+    static constexpr int kShootFrames = 8;
+    static constexpr float kArcherScale = 0.6f;
+    static constexpr float kArcherYOffset = 40.f;
+    static constexpr float kRange = 192.f;
+    static constexpr float kCooldown = 1.5f;
+    static constexpr float kShootFrameDuration = 0.08f;
 
     sf::Sprite m_sprite;
     sf::Sprite m_archer;
 
-    float m_range = 192.f;
-    float m_cooldown = 1.5f;
     float m_cooldownTimer = 0.f;
     bool m_didFire = false;
     sf::Vector2f m_fireDirection;
@@ -93,5 +98,4 @@ class Tower {
     sf::Sprite m_archerShoot;
     bool m_isShooting = false;
     float m_shootTimer = 0.f;
-    float m_shootFrameDuration = 0.08f;
 };

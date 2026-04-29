@@ -1,5 +1,6 @@
 #pragma once
 #include <SFML/Graphics.hpp>
+#include "GameConfig.h"
 
 class Arrow {
   public:
@@ -24,14 +25,11 @@ class Arrow {
     bool wasHit() const { return m_hit; }
 
     bool isExpired() const {
-        return m_hit || m_pos.x < 0.f || m_pos.x > kWindowWidth || m_pos.y < 0.f ||
-               m_pos.y > kWindowHeight;
+        return m_hit || m_pos.x < 0.f || m_pos.x > cfg::windowWidth || m_pos.y < 0.f ||
+               m_pos.y > cfg::windowHeight;
     }
 
   private:
-    static constexpr float kWindowWidth = 1344.f;
-    static constexpr float kWindowHeight = 768.f;
-
     sf::Sprite m_sprite;
     sf::Vector2f m_pos;
     sf::Vector2f m_velocity;

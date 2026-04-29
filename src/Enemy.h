@@ -1,6 +1,7 @@
 #pragma once
 #include <SFML/Graphics.hpp>
 #include <algorithm>
+#include <utility>
 #include <vector>
 
 class Enemy {
@@ -9,12 +10,12 @@ class Enemy {
           sf::Vector2f startPos, std::vector<sf::Vector2f> waypoints)
         : m_sprite(runTexture), m_runTexture(&runTexture), m_attackTexture(&attackTexture),
           m_waypoints(std::move(waypoints)), m_pos(startPos), m_startPos(startPos) {
-        m_sprite.setTextureRect({{0, 0}, {192, 192}});
-        m_sprite.setOrigin({96.f, 96.f});
+        setFrame(0);
+        m_sprite.setOrigin({kFrameSize / 2.f, kFrameSize / 2.f});
     }
 
     void reset() {
-        m_hp = 3;
+        m_hp = kMaxHp;
         m_wpIdx = 0;
         m_pos = m_startPos;
         m_animFrame = 0;
@@ -38,10 +39,10 @@ class Enemy {
             }
 
             m_animTimer += dt;
-            if (m_animTimer >= m_attackFrameDuration) {
-                m_animTimer -= m_attackFrameDuration;
+            if (m_animTimer >= kAttackFrameDuration) {
+                m_animTimer -= kAttackFrameDuration;
                 m_animFrame++;
-                if (m_animFrame >= 4) {
+                if (m_animFrame >= kAttackFrames) {
                     m_animFrame = 0;
                     m_didAttack = true;
                 }
@@ -53,19 +54,19 @@ class Enemy {
         }
 
         m_animTimer += dt;
-        if (m_animTimer >= m_frameDuration) {
-            m_animTimer -= m_frameDuration;
-            m_animFrame = (m_animFrame + 1) % 6;
+        if (m_animTimer >= kRunFrameDuration) {
+            m_animTimer -= kRunFrameDuration;
+            m_animFrame = (m_animFrame + 1) % kRunFrames;
             setFrame(m_animFrame);
         }
 
         if (m_wpIdx < (int)m_waypoints.size()) {
             sf::Vector2f dir = m_waypoints[m_wpIdx] - m_pos;
             float dist = dir.length();
-            if (dist <= m_speed * dt) {
+            if (dist <= kSpeed * dt) {
                 m_pos = m_waypoints[m_wpIdx++];
             } else {
-                m_pos += dir.normalized() * m_speed * dt;
+                m_pos += dir.normalized() * kSpeed * dt;
             }
         }
 
@@ -87,14 +88,24 @@ class Enemy {
         }
 
         sf::Vector2f dir = m_waypoints[m_wpIdx] - m_pos;
-        return dir.normalized() * m_speed;
+        return dir.normalized() * kSpeed;
     }
 
     void takeDamage(int dmg) { m_hp = std::max(0, m_hp - dmg); }
     bool isDead() const { return m_hp <= 0; }
 
   private:
-    void setFrame(int frame) { m_sprite.setTextureRect({{frame * 192, 0}, {192, 192}}); }
+    static constexpr int kFrameSize = 192;
+    static constexpr int kRunFrames = 6;
+    static constexpr int kAttackFrames = 4;
+    static constexpr int kMaxHp = 3;
+    static constexpr float kSpeed = 150.f;
+    static constexpr float kRunFrameDuration = 0.1f;
+    static constexpr float kAttackFrameDuration = 0.12f;
+
+    void setFrame(int frame) {
+        m_sprite.setTextureRect({{frame * kFrameSize, 0}, {kFrameSize, kFrameSize}});
+    }
 
     sf::Sprite m_sprite;
     const sf::Texture* m_runTexture;
@@ -102,13 +113,10 @@ class Enemy {
     std::vector<sf::Vector2f> m_waypoints;
     sf::Vector2f m_pos;
     sf::Vector2f m_startPos;
-    int m_hp = 3;
+    int m_hp = kMaxHp;
     int m_wpIdx = 0;
-    float m_speed = 150.f;
     int m_animFrame = 0;
     float m_animTimer = 0.f;
-    float m_frameDuration = 0.1f;
-    float m_attackFrameDuration = 0.12f;
     bool m_attacking = false;
     bool m_didAttack = false;
 };

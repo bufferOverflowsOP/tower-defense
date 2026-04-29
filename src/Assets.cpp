@@ -1,0 +1,16 @@
+#include "Assets.h"
+
+Assets::Assets() {
+    grass.loadFromFile("assets/Terrain/Tileset/Tilemap_color1.png");
+    path.loadFromFile("assets/Terrain/Tileset/Tilemap_color4.png");
+    castle.loadFromFile("assets/Buildings/Red Buildings/Castle.png");
+    enemyRun.loadFromFile("assets/Units/Black Units/Warrior/Warrior_Run.png");
+    enemyAttack.loadFromFile("assets/Units/Black Units/Warrior/Warrior_Attack1.png");
+    tower.loadFromFile("assets/Buildings/Red Buildings/Tower.png");
+    archer.loadFromFile("assets/Units/Red Units/Archer/Archer_Idle.png");
+    archerShoot.loadFromFile("assets/Units/Red Units/Archer/Archer_Shoot.png");
+    arrow.loadFromFile("assets/Units/Red Units/Archer/Arrow.png");
+    hpBarBase.loadFromFile("assets/UI Elements/UI Elements/Bars/BigBar_Base.png");
+    hpBarFill.loadFromFile("assets/UI Elements/UI Elements/Bars/BigBar_Fill.png");
+    hpBarFill.setRepeated(true);
+}
