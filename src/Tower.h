@@ -25,6 +25,12 @@ class Tower {
         configureArcher(m_archerShoot, pos);
     }
 
+    void update(float dt) {
+        m_didFire = false;
+        m_cooldownTimer += dt;
+        updateShootAnimation(dt);
+    }
+
     void update(float dt, sf::Vector2f enemyPos, sf::Vector2f enemyVelocity) {
         m_didFire = false;
 
@@ -40,16 +46,7 @@ class Tower {
             m_shootTimer = 0.f;
         }
 
-        if (m_isShooting) {
-            m_shootTimer += dt;
-            int newFrame = static_cast<int>(m_shootTimer / kShootFrameDuration);
-            if (newFrame >= kShootFrames) {
-                m_isShooting = false;
-            } else {
-                m_archerShoot.setTextureRect(
-                    {{newFrame * kArcherFrameSize, 0}, {kArcherFrameSize, kArcherFrameSize}});
-            }
-        }
+        updateShootAnimation(dt);
 
         float dir = (enemyPos.x < towerPos.x) ? -1.f : 1.f;
         m_archer.setScale({dir * kArcherScale, kArcherScale});
@@ -63,6 +60,7 @@ class Tower {
 
     bool didFire() const { return m_didFire; }
     sf::Vector2f fireDirection() const { return m_fireDirection; }
+    sf::Vector2f position() const { return m_sprite.getPosition(); }
     sf::Vector2f archerPosition() const {
         const sf::Sprite& activeArcher = m_isShooting ? m_archerShoot : m_archer;
         return activeArcher.getTransform().transformPoint({120.f, 100.f});
@@ -77,6 +75,19 @@ class Tower {
         // in the same direction and speed. add quadratic formula solution for better aiming
         float t = (enemyPos - shotPos).length() / kArrowSpeed;
         return (enemyPos + enemyVel * t - shotPos).normalized();
+    }
+
+    void updateShootAnimation(float dt) {
+        if (!m_isShooting) return;
+
+        m_shootTimer += dt;
+        int newFrame = static_cast<int>(m_shootTimer / kShootFrameDuration);
+        if (newFrame >= kShootFrames) {
+            m_isShooting = false;
+        } else {
+            m_archerShoot.setTextureRect(
+                {{newFrame * kArcherFrameSize, 0}, {kArcherFrameSize, kArcherFrameSize}});
+        }
     }
 
   private:

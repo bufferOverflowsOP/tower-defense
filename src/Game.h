@@ -18,6 +18,8 @@ class Game {
     void handleEvents();
     void update(float dt);
     void draw();
+    void spawnEnemies(float dt);
+    Enemy* nearestEnemy(sf::Vector2f position);
     bool canPlaceTower(int col, int row) const;
 
     sf::RenderWindow m_window;
@@ -25,12 +27,13 @@ class Game {
     sf::Sprite m_grass;
     sf::Sprite m_path;
     sf::Sprite m_castle;
-    Enemy m_enemy;
     sf::Sprite m_preview;
     HpBar m_hpBar;
+    std::vector<Enemy> m_enemies;
     std::map<int, Tower> m_towers;
     std::vector<Arrow> m_arrows;
     int m_castleHp = 0;
+    float m_spawnTimer = 0.f;
     int m_castleMinCol = 0;
     int m_castleMaxCol = 0;
     int m_castleMinRow = 0;

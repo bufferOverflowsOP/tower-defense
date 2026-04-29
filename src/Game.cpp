@@ -36,6 +36,13 @@ int towerKey(int col, int row) {
     return row * cfg::cols + col;
 }
 
+std::vector<sf::Vector2f> enemyWaypoints() {
+    return {tileCenter(10, 2), tileCenter(10, 6), tileCenter(17, 6)};
+}
+
+constexpr float kSpawnDelay = 1.f;
+constexpr float kArrowHitRadius = 20.f;
+
 }  // namespace
 
 Game::Game()
@@ -44,11 +51,10 @@ Game::Game()
       m_grass(m_assets.grass),
       m_path(m_assets.path),
       m_castle(m_assets.castle),
-      m_enemy(m_assets.enemyRun, m_assets.enemyAttack, tileCenter(0, 2),
-              {tileCenter(10, 2), tileCenter(10, 6), tileCenter(17, 6)}),
       m_preview(m_assets.tower),
       m_hpBar(m_assets.hpBarBase, m_assets.hpBarFill),
-      m_castleHp(cfg::castleMaxHp) {
+      m_castleHp(cfg::castleMaxHp),
+      m_spawnTimer(kSpawnDelay) {
     m_window.setVerticalSyncEnabled(true);
     m_window.setFramerateLimit(60);
 
@@ -109,23 +115,38 @@ void Game::handleEvents() {
 }
 
 void Game::update(float dt) {
-    m_enemy.update(dt);
+    spawnEnemies(dt);
 
-    if (m_enemy.didAttack()) {
-        m_castleHp = std::max(0, m_castleHp - 1);
-        if (m_castleHp == 0) {
-            m_window.close();
-            return;
+    bool shouldClose = false;
+    for (auto& enemy : m_enemies) {
+        enemy.update(dt);
+        if (enemy.didAttack()) {
+            m_castleHp = std::max(0, m_castleHp - 1);
+            shouldClose = m_castleHp == 0;
         }
-    } else if (m_enemy.isDead()) {
-        m_enemy.reset();
-        m_arrows.clear();
+    }
+
+    m_enemies.erase(std::remove_if(m_enemies.begin(), m_enemies.end(),
+                                   [](const Enemy& enemy) {
+                                       return enemy.isDead() || enemy.didAttack();
+                                   }),
+                    m_enemies.end());
+
+    if (shouldClose) {
+        m_window.close();
+        return;
     }
 
     m_hpBar.update(m_castleHp);
 
     for (auto& [_, tower] : m_towers) {
-        tower.update(dt, m_enemy.getPosition(), m_enemy.getVelocity());
+        Enemy* target = nearestEnemy(tower.position());
+        if (target) {
+            tower.update(dt, target->getPosition(), target->getVelocity());
+        } else {
+            tower.update(dt);
+        }
+
         if (tower.didFire()) {
             m_arrows.emplace_back(m_assets.arrow, tower.archerPosition(),
                                   tower.fireDirection() * Tower::kArrowSpeed);
@@ -135,10 +156,13 @@ void Game::update(float dt) {
     for (auto& arrow : m_arrows) {
         arrow.update(dt);
         if (!arrow.wasHit()) {
-            sf::Vector2f diff = arrow.getPosition() - m_enemy.getPosition();
-            if (std::hypot(diff.x, diff.y) < 20.f && !m_enemy.isDead()) {
-                m_enemy.takeDamage(1);
-                arrow.markHit();
+            for (auto& enemy : m_enemies) {
+                sf::Vector2f diff = arrow.getPosition() - enemy.getPosition();
+                if (std::hypot(diff.x, diff.y) < kArrowHitRadius && !enemy.isDead()) {
+                    enemy.takeDamage(1);
+                    arrow.markHit();
+                    break;
+                }
             }
         }
     }
@@ -177,9 +201,37 @@ void Game::draw() {
     }
 
     m_window.draw(m_castle);
-    m_enemy.draw(m_window);
+    for (auto& enemy : m_enemies) {
+        enemy.draw(m_window);
+    }
     m_hpBar.draw(m_window);
     m_window.display();
+}
+
+void Game::spawnEnemies(float dt) {
+    m_spawnTimer += dt;
+    if (m_spawnTimer < kSpawnDelay) return;
+
+    m_spawnTimer = 0.f;
+    m_enemies.emplace_back(m_assets.enemyRun, m_assets.enemyAttack, tileCenter(0, 2),
+                           enemyWaypoints());
+}
+
+Enemy* Game::nearestEnemy(sf::Vector2f position) {
+    Enemy* closest = nullptr;
+    float closestDist = 0.f;
+
+    for (auto& enemy : m_enemies) {
+        if (enemy.isDead()) continue;
+
+        float dist = (enemy.getPosition() - position).length();
+        if (!closest || dist < closestDist) {
+            closest = &enemy;
+            closestDist = dist;
+        }
+    }
+
+    return closest;
 }
 
 bool Game::canPlaceTower(int col, int row) const {
