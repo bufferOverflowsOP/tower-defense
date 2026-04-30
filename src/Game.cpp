@@ -25,8 +25,7 @@ const char* pathLayout[cfg::rows] = { // . = grass, X = path
 // clang-format on
 
 sf::Vector2f tileCenter(int col, int row) {
-    return {col * cfg::tileSize + cfg::tileSize / 2.f,
-            row * cfg::tileSize + cfg::tileSize / 2.f};
+    return {col * cfg::tileSize + cfg::tileSize / 2.f, row * cfg::tileSize + cfg::tileSize / 2.f};
 }
 
 sf::Vector2f tileBottom(int col, int row) {
@@ -43,22 +42,30 @@ std::vector<sf::Vector2f> enemyWaypoints() {
 
 constexpr float kSpawnDelay = 1.f;
 constexpr float kArrowHitRadius = 20.f;
-constexpr int kTowerCost = 25;
+constexpr int kArcherCost = 25;
+constexpr int kBarracksCost = 40;
 constexpr int kEnemyReward = 10;
+constexpr sf::Vector2f kArcherSlotPosition{12.f, 676.f};
+constexpr sf::Vector2f kBarracksSlotPosition{84.f, 676.f};
+constexpr sf::Vector2f kShopSlotSize{64.f, 80.f};
 
-}  // namespace
+sf::FloatRect shopSlotBounds(TowerKind kind) {
+    sf::Vector2f pos = kind == TowerKind::Archer ? kArcherSlotPosition : kBarracksSlotPosition;
+    return {pos, kShopSlotSize};
+}
+
+} // namespace
 
 Game::Game()
-    : m_window(sf::VideoMode({cfg::windowWidth, cfg::windowHeight}), "Tower Defense"),
-      m_assets(),
-      m_grass(m_assets.grass),
-      m_path(m_assets.path),
-      m_castle(m_assets.castle),
-      m_preview(m_assets.tower),
-      m_goldIcon(m_assets.goldIcon),
-      m_goldText(m_assets.uiFont, "", 24),
-      m_hpBar(m_assets.hpBarBase, m_assets.hpBarFill),
-      m_castleHp(cfg::castleMaxHp),
+    : m_window(sf::VideoMode({cfg::windowWidth, cfg::windowHeight}), "Tower Defense"), m_assets(),
+      m_grass(m_assets.grass), m_path(m_assets.path), m_castle(m_assets.castle),
+      m_preview(m_assets.tower), m_goldIcon(m_assets.goldIcon), m_goldText(m_assets.uiFont, "", 24),
+      m_archerCard(m_assets.shopCard), m_barracksCard(m_assets.shopCard),
+      m_archerIcon(m_assets.tower), m_barracksIcon(m_assets.barracks),
+      m_archerCostIcon(m_assets.goldIcon), m_barracksCostIcon(m_assets.goldIcon),
+      m_archerCostText(m_assets.uiFont, std::to_string(kArcherCost), 14),
+      m_barracksCostText(m_assets.uiFont, std::to_string(kBarracksCost), 14),
+      m_hpBar(m_assets.hpBarBase, m_assets.hpBarFill), m_castleHp(cfg::castleMaxHp),
       m_spawnTimer(kSpawnDelay) {
     m_window.setVerticalSyncEnabled(true);
     m_window.setFramerateLimit(60);
@@ -84,6 +91,30 @@ Game::Game()
     m_goldText.setPosition({216.f, 8.f});
     updateGoldText();
 
+    m_archerCard.setScale({0.5f, 0.5f});
+    m_barracksCard.setScale({0.5f, 0.5f});
+    m_archerCard.setPosition(kArcherSlotPosition);
+    m_barracksCard.setPosition(kBarracksSlotPosition);
+    Tower::configure(m_archerIcon, m_assets.tower);
+    Tower::configure(m_barracksIcon, m_assets.barracks);
+    m_archerIcon.setScale({0.25f, 0.25f});
+    m_barracksIcon.setScale({0.25f, 0.25f});
+    m_archerIcon.setPosition(kArcherSlotPosition + sf::Vector2f{32.f, 48.f});
+    m_barracksIcon.setPosition(kBarracksSlotPosition + sf::Vector2f{32.f, 48.f});
+    m_archerCostIcon.setScale({0.25f, 0.25f});
+    m_barracksCostIcon.setScale({0.25f, 0.25f});
+    m_archerCostIcon.setPosition(kArcherSlotPosition + sf::Vector2f{12.f, 60.f});
+    m_barracksCostIcon.setPosition(kBarracksSlotPosition + sf::Vector2f{12.f, 60.f});
+    m_archerCostText.setFillColor(m_goldText.getFillColor());
+    m_archerCostText.setOutlineColor(m_goldText.getOutlineColor());
+    m_archerCostText.setOutlineThickness(m_goldText.getOutlineThickness());
+    m_archerCostText.setPosition(kArcherSlotPosition + sf::Vector2f{29.f, 57.f});
+    m_barracksCostText.setFillColor(m_goldText.getFillColor());
+    m_barracksCostText.setOutlineColor(m_goldText.getOutlineColor());
+    m_barracksCostText.setOutlineThickness(m_goldText.getOutlineThickness());
+    m_barracksCostText.setPosition(kBarracksSlotPosition + sf::Vector2f{29.f, 57.f});
+    updateShopUi();
+
     auto castleBounds = m_castle.getGlobalBounds();
     m_castleMinCol = int(castleBounds.position.x) / cfg::tileSize;
     m_castleMaxCol = int(castleBounds.position.x + castleBounds.size.x - 1.f) / cfg::tileSize;
@@ -96,16 +127,19 @@ void Game::run() {
     while (m_window.isOpen()) {
         float dt = clock.restart().asSeconds();
         handleEvents();
-        if (!m_window.isOpen()) break;
+        if (!m_window.isOpen())
+            break;
         update(dt);
-        if (!m_window.isOpen()) break;
+        if (!m_window.isOpen())
+            break;
         draw();
     }
 }
 
 void Game::handleEvents() {
     while (const std::optional event = m_window.pollEvent()) {
-        if (event->is<sf::Event::Closed>()) m_window.close();
+        if (event->is<sf::Event::Closed>())
+            m_window.close();
 
         if (auto* mouseMove = event->getIf<sf::Event::MouseMoved>()) {
             sf::Vector2f pos = m_window.mapPixelToCoords(mouseMove->position);
@@ -116,13 +150,19 @@ void Game::handleEvents() {
         if (auto* mousePress = event->getIf<sf::Event::MouseButtonPressed>()) {
             if (mousePress->button == sf::Mouse::Button::Left) {
                 sf::Vector2f click = m_window.mapPixelToCoords(mousePress->position);
+                if (handleShopClick(click))
+                    continue;
+
                 int col = int(click.x) / cfg::tileSize;
                 int row = int(click.y) / cfg::tileSize;
-                if (m_gold >= kTowerCost && canPlaceTower(col, row)) {
-                    m_towers.try_emplace(towerKey(col, row), m_assets.tower, m_assets.archer,
+                int cost = selectedTowerCost();
+                if (m_gold >= cost && canPlaceTower(col, row)) {
+                    m_towers.try_emplace(towerKey(col, row), m_selectedTower,
+                                         selectedTowerTexture(), m_assets.archer,
                                          m_assets.archerShoot, tileBottom(col, row));
-                    m_gold -= kTowerCost;
+                    m_gold -= cost;
                     updateGoldText();
+                    updateShopUi();
                 }
             }
         }
@@ -146,6 +186,7 @@ void Game::update(float dt) {
                                        if (enemy.isDead()) {
                                            m_gold += kEnemyReward;
                                            updateGoldText();
+                                           updateShopUi();
                                            return true;
                                        }
                                        return false;
@@ -216,6 +257,8 @@ void Game::draw() {
     }
 
     if (canPlaceTower(m_hoverCol, m_hoverRow)) {
+        m_preview.setTexture(selectedTowerTexture(), true);
+        Tower::configure(m_preview, selectedTowerTexture());
         m_preview.setPosition(tileBottom(m_hoverCol, m_hoverRow));
         m_window.draw(m_preview);
     }
@@ -227,12 +270,14 @@ void Game::draw() {
     m_hpBar.draw(m_window);
     m_window.draw(m_goldIcon);
     m_window.draw(m_goldText);
+    drawShop();
     m_window.display();
 }
 
 void Game::spawnEnemies(float dt) {
     m_spawnTimer += dt;
-    if (m_spawnTimer < kSpawnDelay) return;
+    if (m_spawnTimer < kSpawnDelay)
+        return;
 
     m_spawnTimer = 0.f;
     m_enemies.emplace_back(m_assets.enemyRun, m_assets.enemyAttack, tileCenter(0, 2),
@@ -244,7 +289,8 @@ Enemy* Game::nearestEnemy(sf::Vector2f position) {
     float closestDist = 0.f;
 
     for (auto& enemy : m_enemies) {
-        if (enemy.isDead()) continue;
+        if (enemy.isDead())
+            continue;
 
         float dist = (enemy.getPosition() - position).length();
         if (!closest || dist < closestDist) {
@@ -265,4 +311,57 @@ bool Game::canPlaceTower(int col, int row) const {
 
 void Game::updateGoldText() {
     m_goldText.setString(std::to_string(m_gold));
+}
+
+bool Game::handleShopClick(sf::Vector2f click) {
+    if (shopSlotBounds(TowerKind::Archer).contains(click)) {
+        m_selectedTower = TowerKind::Archer;
+        updateShopUi();
+        return true;
+    }
+
+    if (shopSlotBounds(TowerKind::Barracks).contains(click)) {
+        m_selectedTower = TowerKind::Barracks;
+        updateShopUi();
+        return true;
+    }
+
+    return false;
+}
+
+void Game::updateShopUi() {
+    m_archerCard.setTexture(m_selectedTower == TowerKind::Archer ? m_assets.shopButtonSelected
+                                                                 : m_assets.shopCard,
+                            true);
+    m_barracksCard.setTexture(m_selectedTower == TowerKind::Barracks ? m_assets.shopButtonSelected
+                                                                     : m_assets.shopCard,
+                              true);
+    m_archerIcon.setColor(m_gold < kArcherCost ? sf::Color(120, 120, 120) : sf::Color::White);
+    m_barracksIcon.setColor(m_gold < kBarracksCost ? sf::Color(120, 120, 120) : sf::Color::White);
+    m_archerCostIcon.setColor(m_gold < kArcherCost ? sf::Color(120, 120, 120) : sf::Color::White);
+    m_barracksCostIcon.setColor(m_gold < kBarracksCost ? sf::Color(120, 120, 120)
+                                                       : sf::Color::White);
+    m_archerCostText.setFillColor(m_gold < kArcherCost ? sf::Color(150, 130, 80)
+                                                       : m_goldText.getFillColor());
+    m_barracksCostText.setFillColor(m_gold < kBarracksCost ? sf::Color(150, 130, 80)
+                                                           : m_goldText.getFillColor());
+}
+
+void Game::drawShop() {
+    m_window.draw(m_archerCard);
+    m_window.draw(m_barracksCard);
+    m_window.draw(m_archerIcon);
+    m_window.draw(m_barracksIcon);
+    m_window.draw(m_archerCostIcon);
+    m_window.draw(m_barracksCostIcon);
+    m_window.draw(m_archerCostText);
+    m_window.draw(m_barracksCostText);
+}
+
+int Game::selectedTowerCost() const {
+    return m_selectedTower == TowerKind::Archer ? kArcherCost : kBarracksCost;
+}
+
+const sf::Texture& Game::selectedTowerTexture() const {
+    return m_selectedTower == TowerKind::Archer ? m_assets.tower : m_assets.barracks;
 }

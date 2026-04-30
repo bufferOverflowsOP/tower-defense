@@ -17,12 +17,20 @@ class Arrow {
         m_sprite.setPosition(m_pos);
     }
 
-    void draw(sf::RenderWindow& window) const { window.draw(m_sprite); }
+    void draw(sf::RenderWindow& window) const {
+        window.draw(m_sprite);
+    }
 
-    sf::Vector2f getPosition() const { return m_pos; }
+    sf::Vector2f getPosition() const {
+        return m_pos;
+    }
 
-    void markHit() { m_hit = true; }
-    bool wasHit() const { return m_hit; }
+    void markHit() {
+        m_hit = true;
+    }
+    bool wasHit() const {
+        return m_hit;
+    }
 
     bool isExpired() const {
         return m_hit || m_pos.x < 0.f || m_pos.x > cfg::windowWidth || m_pos.y < 0.f ||

@@ -10,11 +10,14 @@ struct Assets {
     sf::Texture enemyRun;
     sf::Texture enemyAttack;
     sf::Texture tower;
+    sf::Texture barracks;
     sf::Texture archer;
     sf::Texture archerShoot;
     sf::Texture arrow;
     sf::Texture hpBarBase;
     sf::Texture hpBarFill;
     sf::Texture goldIcon;
+    sf::Texture shopCard;
+    sf::Texture shopButtonSelected;
     sf::Font uiFont;
 };

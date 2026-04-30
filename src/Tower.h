@@ -1,6 +1,8 @@
 #pragma once
 #include <SFML/Graphics.hpp>
 
+enum class TowerKind { Archer, Barracks };
+
 class Tower {
   public:
     static void configure(sf::Sprite& s, const sf::Texture& t) {
@@ -16,9 +18,9 @@ class Tower {
         s.setPosition(pos - sf::Vector2f(0.f, kArcherYOffset));
     }
 
-    Tower(const sf::Texture& texture, const sf::Texture& archerTexture,
+    Tower(TowerKind kind, const sf::Texture& texture, const sf::Texture& archerTexture,
           const sf::Texture& shootTexture, sf::Vector2f pos)
-        : m_sprite(texture), m_archer(archerTexture), m_archerShoot(shootTexture) {
+        : m_kind(kind), m_sprite(texture), m_archer(archerTexture), m_archerShoot(shootTexture) {
         configure(m_sprite, texture);
         m_sprite.setPosition(pos);
         configureArcher(m_archer, pos);
@@ -35,6 +37,9 @@ class Tower {
         m_didFire = false;
 
         m_cooldownTimer += dt;
+
+        if (m_kind != TowerKind::Archer)
+            return;
 
         sf::Vector2f towerPos = m_sprite.getPosition();
 
@@ -55,12 +60,23 @@ class Tower {
 
     void draw(sf::RenderWindow& window) {
         window.draw(m_sprite);
-        window.draw(m_isShooting ? m_archerShoot : m_archer);
+        if (m_kind == TowerKind::Archer) {
+            window.draw(m_isShooting ? m_archerShoot : m_archer);
+        }
     }
 
-    bool didFire() const { return m_didFire; }
-    sf::Vector2f fireDirection() const { return m_fireDirection; }
-    sf::Vector2f position() const { return m_sprite.getPosition(); }
+    bool didFire() const {
+        return m_didFire;
+    }
+    sf::Vector2f fireDirection() const {
+        return m_fireDirection;
+    }
+    sf::Vector2f position() const {
+        return m_sprite.getPosition();
+    }
+    TowerKind kind() const {
+        return m_kind;
+    }
     sf::Vector2f archerPosition() const {
         const sf::Sprite& activeArcher = m_isShooting ? m_archerShoot : m_archer;
         return activeArcher.getTransform().transformPoint({120.f, 100.f});
@@ -78,7 +94,8 @@ class Tower {
     }
 
     void updateShootAnimation(float dt) {
-        if (!m_isShooting) return;
+        if (!m_isShooting)
+            return;
 
         m_shootTimer += dt;
         int newFrame = static_cast<int>(m_shootTimer / kShootFrameDuration);
@@ -99,6 +116,7 @@ class Tower {
     static constexpr float kCooldown = 1.5f;
     static constexpr float kShootFrameDuration = 0.08f;
 
+    TowerKind m_kind;
     sf::Sprite m_sprite;
     sf::Sprite m_archer;
 

@@ -21,6 +21,16 @@ cmake --build build
 ./build/bin/main
 ```
 
+## Format
+
+```sh
+npm install
+npm run format
+clang-format -i src/*.{cpp,h}
+```
+
+See [STYLE.md](STYLE.md).
+
 ## Assets
 
 MedievalSharp is bundled in `assets/Fonts/` under the SIL Open Font License.

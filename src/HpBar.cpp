@@ -4,8 +4,7 @@
 HpBar::HpBar(const sf::Texture& baseTexture, const sf::Texture& fillTexture)
     : m_left(baseTexture, {{40, 0}, {kCapWidthPx, kHeightPx}}),
       m_center(baseTexture, {{128, 0}, {kCenterWidthPx, kHeightPx}}),
-      m_right(baseTexture, {{256, 0}, {kCapWidthPx, kHeightPx}}),
-      m_fill(fillTexture) {
+      m_right(baseTexture, {{256, 0}, {kCapWidthPx, kHeightPx}}), m_fill(fillTexture) {
     m_left.setPosition(kPos);
     m_left.setScale({kScale, kScale});
 

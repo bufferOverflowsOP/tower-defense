@@ -22,6 +22,11 @@ class Game {
     Enemy* nearestEnemy(sf::Vector2f position);
     bool canPlaceTower(int col, int row) const;
     void updateGoldText();
+    bool handleShopClick(sf::Vector2f click);
+    void updateShopUi();
+    void drawShop();
+    int selectedTowerCost() const;
+    const sf::Texture& selectedTowerTexture() const;
 
     sf::RenderWindow m_window;
     Assets m_assets;
@@ -31,10 +36,19 @@ class Game {
     sf::Sprite m_preview;
     sf::Sprite m_goldIcon;
     sf::Text m_goldText;
+    sf::Sprite m_archerCard;
+    sf::Sprite m_barracksCard;
+    sf::Sprite m_archerIcon;
+    sf::Sprite m_barracksIcon;
+    sf::Sprite m_archerCostIcon;
+    sf::Sprite m_barracksCostIcon;
+    sf::Text m_archerCostText;
+    sf::Text m_barracksCostText;
     HpBar m_hpBar;
     std::vector<Enemy> m_enemies;
     std::map<int, Tower> m_towers;
     std::vector<Arrow> m_arrows;
+    TowerKind m_selectedTower = TowerKind::Archer;
     int m_castleHp = 0;
     int m_gold = 100;
     float m_spawnTimer = 0.f;

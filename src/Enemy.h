@@ -6,8 +6,8 @@
 
 class Enemy {
   public:
-    Enemy(const sf::Texture& runTexture, const sf::Texture& attackTexture,
-          sf::Vector2f startPos, std::vector<sf::Vector2f> waypoints)
+    Enemy(const sf::Texture& runTexture, const sf::Texture& attackTexture, sf::Vector2f startPos,
+          std::vector<sf::Vector2f> waypoints)
         : m_sprite(runTexture), m_runTexture(&runTexture), m_attackTexture(&attackTexture),
           m_waypoints(std::move(waypoints)), m_pos(startPos), m_startPos(startPos) {
         setFrame(0);
@@ -28,7 +28,8 @@ class Enemy {
 
     void update(float dt) {
         m_didAttack = false;
-        if (isDead()) return;
+        if (isDead())
+            return;
         if (reachedEnd()) {
             if (!m_attacking) {
                 m_attacking = true;
@@ -74,13 +75,20 @@ class Enemy {
     }
 
     void draw(sf::RenderWindow& window) {
-        if (isDead()) return;
+        if (isDead())
+            return;
         window.draw(m_sprite);
     }
 
-    bool reachedEnd() const { return m_wpIdx >= (int)m_waypoints.size(); }
-    sf::Vector2f getPosition() const { return m_pos; }
-    bool didAttack() const { return m_didAttack; }
+    bool reachedEnd() const {
+        return m_wpIdx >= (int)m_waypoints.size();
+    }
+    sf::Vector2f getPosition() const {
+        return m_pos;
+    }
+    bool didAttack() const {
+        return m_didAttack;
+    }
 
     sf::Vector2f getVelocity() const {
         if (m_wpIdx >= (int)m_waypoints.size()) {
@@ -91,8 +99,12 @@ class Enemy {
         return dir.normalized() * kSpeed;
     }
 
-    void takeDamage(int dmg) { m_hp = std::max(0, m_hp - dmg); }
-    bool isDead() const { return m_hp <= 0; }
+    void takeDamage(int dmg) {
+        m_hp = std::max(0, m_hp - dmg);
+    }
+    bool isDead() const {
+        return m_hp <= 0;
+    }
 
   private:
     static constexpr int kFrameSize = 192;
