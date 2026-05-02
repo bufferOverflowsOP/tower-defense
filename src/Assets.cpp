@@ -8,6 +8,8 @@ Assets::Assets() {
     enemyAttack.loadFromFile("assets/Units/Black Units/Warrior/Warrior_Attack1.png");
     tower.loadFromFile("assets/Buildings/Red Buildings/Tower.png");
     barracks.loadFromFile("assets/Buildings/Red Buildings/Barracks.png");
+    barracksGuardIdle.loadFromFile("assets/Units/Red Units/Warrior/Warrior_Idle.png");
+    barracksGuardAttack.loadFromFile("assets/Units/Red Units/Warrior/Warrior_Attack1.png");
     archer.loadFromFile("assets/Units/Red Units/Archer/Archer_Idle.png");
     archerShoot.loadFromFile("assets/Units/Red Units/Archer/Archer_Shoot.png");
     arrow.loadFromFile("assets/Units/Red Units/Archer/Arrow.png");

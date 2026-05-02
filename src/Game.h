@@ -19,6 +19,7 @@ class Game {
     void update(float dt);
     void draw();
     void spawnEnemies(float dt);
+    void updateGuards(float dt);
     Enemy* nearestEnemy(sf::Vector2f position);
     bool canPlaceTower(int col, int row) const;
     void updateGoldText();
@@ -48,6 +49,23 @@ class Game {
     std::vector<Enemy> m_enemies;
     std::map<int, Tower> m_towers;
     std::vector<Arrow> m_arrows;
+    struct BarracksGuard {
+        BarracksGuard(const sf::Texture& idleTexture, const sf::Texture& attackTexture,
+                      sf::Vector2f pos);
+
+        void update(float dt, Enemy* target);
+        void draw(sf::RenderWindow& window);
+        sf::Vector2f position() const;
+
+        sf::Sprite sprite;
+        const sf::Texture* idleTexture;
+        const sf::Texture* attackTexture;
+        float strikeTimer = 0.f;
+        float animTimer = 0.f;
+        int animFrame = 0;
+        bool attacking = false;
+    };
+    std::vector<BarracksGuard> m_guards;
     TowerKind m_selectedTower = TowerKind::Archer;
     int m_castleHp = 0;
     int m_gold = 100;

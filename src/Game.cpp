@@ -42,9 +42,17 @@ std::vector<sf::Vector2f> enemyWaypoints() {
 
 constexpr float kSpawnDelay = 1.f;
 constexpr float kArrowHitRadius = 20.f;
+constexpr float kGuardHitRadius = 88.f;
+constexpr float kGuardScale = 0.62f;
+constexpr float kGuardStrikeDelay = 0.8f;
+constexpr float kGuardBlockDuration = 0.45f;
+constexpr float kGuardAnimFrameDuration = 0.09f;
+constexpr float kGuardIdleFrameDuration = 0.16f;
 constexpr int kArcherCost = 25;
 constexpr int kBarracksCost = 40;
 constexpr int kEnemyReward = 10;
+constexpr int kGuardIdleFrames = 8;
+constexpr int kGuardAttackFrames = 4;
 constexpr sf::Vector2f kArcherSlotPosition{12.f, 676.f};
 constexpr sf::Vector2f kBarracksSlotPosition{84.f, 676.f};
 constexpr sf::Vector2f kShopSlotSize{64.f, 80.f};
@@ -54,7 +62,95 @@ sf::FloatRect shopSlotBounds(TowerKind kind) {
     return {pos, kShopSlotSize};
 }
 
+sf::Vector2f nearestPathPoint(sf::Vector2f pos) {
+    sf::Vector2f best = tileCenter(0, 2);
+    float bestDist = (best - pos).length();
+
+    for (int row = 0; row < cfg::rows; row++) {
+        for (int col = 0; col < cfg::cols; col++) {
+            if (pathLayout[row][col] != 'X')
+                continue;
+
+            sf::Vector2f candidate = tileCenter(col, row);
+            float dist = (candidate - pos).length();
+            if (dist < bestDist) {
+                best = candidate;
+                bestDist = dist;
+            }
+        }
+    }
+
+    return best;
+}
+
+sf::Vector2f guardPostPoint(sf::Vector2f towerPos) {
+    sf::Vector2f path = nearestPathPoint(towerPos);
+    sf::Vector2f awayFromTower = path - towerPos;
+    if (awayFromTower.length() == 0.f)
+        awayFromTower = {0.f, -1.f};
+
+    return path + awayFromTower.normalized() * 26.f + sf::Vector2f{0.f, 18.f};
+}
+
 } // namespace
+
+Game::BarracksGuard::BarracksGuard(const sf::Texture& idleTexture,
+                                   const sf::Texture& attackTexture, sf::Vector2f pos)
+    : sprite(idleTexture), idleTexture(&idleTexture), attackTexture(&attackTexture) {
+    sprite.setTextureRect({{0, 0}, {192, 192}});
+    sprite.setOrigin({96.f, 132.f});
+    sprite.setScale({kGuardScale, kGuardScale});
+    sprite.setPosition(pos);
+}
+
+void Game::BarracksGuard::update(float dt, Enemy* target) {
+    strikeTimer += dt;
+
+    if (target) {
+        float dir = target->getPosition().x < position().x ? -1.f : 1.f;
+        sprite.setScale({dir * kGuardScale, kGuardScale});
+    }
+
+    if (!attacking && target && strikeTimer >= kGuardStrikeDelay) {
+        target->takeDamage(1);
+        target->block(kGuardBlockDuration);
+        strikeTimer = 0.f;
+        attacking = true;
+        animTimer = 0.f;
+        animFrame = 0;
+        sprite.setTexture(*attackTexture, true);
+        sprite.setTextureRect({{0, 0}, {192, 192}});
+    }
+
+    if (attacking) {
+        animTimer += dt;
+        int frame = static_cast<int>(animTimer / kGuardAnimFrameDuration);
+        if (frame >= kGuardAttackFrames) {
+            attacking = false;
+            sprite.setTexture(*idleTexture, true);
+            sprite.setTextureRect({{0, 0}, {192, 192}});
+        } else if (frame != animFrame) {
+            animFrame = frame;
+            sprite.setTextureRect({{animFrame * 192, 0}, {192, 192}});
+        }
+        return;
+    }
+
+    animTimer += dt;
+    if (animTimer >= kGuardIdleFrameDuration) {
+        animTimer -= kGuardIdleFrameDuration;
+        animFrame = (animFrame + 1) % kGuardIdleFrames;
+        sprite.setTextureRect({{animFrame * 192, 0}, {192, 192}});
+    }
+}
+
+void Game::BarracksGuard::draw(sf::RenderWindow& window) {
+    window.draw(sprite);
+}
+
+sf::Vector2f Game::BarracksGuard::position() const {
+    return sprite.getPosition();
+}
 
 Game::Game()
     : m_window(sf::VideoMode({cfg::windowWidth, cfg::windowHeight}), "Tower Defense"), m_assets(),
@@ -157,9 +253,15 @@ void Game::handleEvents() {
                 int row = int(click.y) / cfg::tileSize;
                 int cost = selectedTowerCost();
                 if (m_gold >= cost && canPlaceTower(col, row)) {
-                    m_towers.try_emplace(towerKey(col, row), m_selectedTower,
-                                         selectedTowerTexture(), m_assets.archer,
-                                         m_assets.archerShoot, tileBottom(col, row));
+                    int key = towerKey(col, row);
+                    m_towers.try_emplace(key, m_selectedTower, selectedTowerTexture(),
+                                         m_assets.archer, m_assets.archerShoot,
+                                         tileBottom(col, row));
+                    if (m_selectedTower == TowerKind::Barracks) {
+                        m_guards.emplace_back(m_assets.barracksGuardIdle,
+                                              m_assets.barracksGuardAttack,
+                                              guardPostPoint(tileBottom(col, row)));
+                    }
                     m_gold -= cost;
                     updateGoldText();
                     updateShopUi();
@@ -199,6 +301,8 @@ void Game::update(float dt) {
     }
 
     m_hpBar.update(m_castleHp);
+
+    updateGuards(dt);
 
     for (auto& [_, tower] : m_towers) {
         Enemy* target = nearestEnemy(tower.position());
@@ -267,6 +371,10 @@ void Game::draw() {
     for (auto& enemy : m_enemies) {
         enemy.draw(m_window);
     }
+    for (auto& guard : m_guards) {
+        guard.draw(m_window);
+    }
+
     m_hpBar.draw(m_window);
     m_window.draw(m_goldIcon);
     m_window.draw(m_goldText);
@@ -282,6 +390,26 @@ void Game::spawnEnemies(float dt) {
     m_spawnTimer = 0.f;
     m_enemies.emplace_back(m_assets.enemyRun, m_assets.enemyAttack, tileCenter(0, 2),
                            enemyWaypoints());
+}
+
+void Game::updateGuards(float dt) {
+    for (auto& guard : m_guards) {
+        Enemy* target = nullptr;
+        float closestDist = 0.f;
+        for (auto& enemy : m_enemies) {
+            if (enemy.isDead() || enemy.reachedEnd())
+                continue;
+
+            sf::Vector2f diff = guard.position() - enemy.getPosition();
+            float dist = std::hypot(diff.x, diff.y);
+            if (dist < kGuardHitRadius && (!target || dist < closestDist)) {
+                target = &enemy;
+                closestDist = dist;
+            }
+        }
+
+        guard.update(dt, target);
+    }
 }
 
 Enemy* Game::nearestEnemy(sf::Vector2f position) {

@@ -11,6 +11,8 @@ struct Assets {
     sf::Texture enemyAttack;
     sf::Texture tower;
     sf::Texture barracks;
+    sf::Texture barracksGuardIdle;
+    sf::Texture barracksGuardAttack;
     sf::Texture archer;
     sf::Texture archerShoot;
     sf::Texture arrow;

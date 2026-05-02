@@ -20,6 +20,7 @@ class Enemy {
         m_pos = m_startPos;
         m_animFrame = 0;
         m_animTimer = 0.f;
+        m_blockTimer = 0.f;
         m_attacking = false;
         m_didAttack = false;
         m_sprite.setTexture(*m_runTexture);
@@ -50,6 +51,12 @@ class Enemy {
                 setFrame(m_animFrame);
             }
 
+            m_sprite.setPosition(m_pos);
+            return;
+        }
+
+        if (m_blockTimer > 0.f) {
+            m_blockTimer = std::max(0.f, m_blockTimer - dt);
             m_sprite.setPosition(m_pos);
             return;
         }
@@ -91,7 +98,7 @@ class Enemy {
     }
 
     sf::Vector2f getVelocity() const {
-        if (m_wpIdx >= (int)m_waypoints.size()) {
+        if (m_blockTimer > 0.f || m_wpIdx >= (int)m_waypoints.size()) {
             return {};
         }
 
@@ -101,6 +108,9 @@ class Enemy {
 
     void takeDamage(int dmg) {
         m_hp = std::max(0, m_hp - dmg);
+    }
+    void block(float duration) {
+        m_blockTimer = std::max(m_blockTimer, duration);
     }
     bool isDead() const {
         return m_hp <= 0;
@@ -129,6 +139,7 @@ class Enemy {
     int m_wpIdx = 0;
     int m_animFrame = 0;
     float m_animTimer = 0.f;
+    float m_blockTimer = 0.f;
     bool m_attacking = false;
     bool m_didAttack = false;
 };
