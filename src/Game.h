@@ -26,6 +26,7 @@ class Game {
     bool handleShopClick(sf::Vector2f click);
     void updateShopUi();
     void drawShop();
+    void updateWaveText();
     int selectedTowerCost() const;
     const sf::Texture& selectedTowerTexture() const;
 
@@ -37,6 +38,7 @@ class Game {
     sf::Sprite m_preview;
     sf::Sprite m_goldIcon;
     sf::Text m_goldText;
+    sf::Text m_waveText;
     sf::Sprite m_archerCard;
     sf::Sprite m_barracksCard;
     sf::Sprite m_archerIcon;
@@ -68,8 +70,12 @@ class Game {
     std::vector<BarracksGuard> m_guards;
     TowerKind m_selectedTower = TowerKind::Archer;
     int m_castleHp = 0;
-    int m_gold = 100;
+    int m_gold = 25;
+    int m_wave = 1;
+    int m_waveEnemiesLeft = 1;
     float m_spawnTimer = 0.f;
+    bool m_waitingForWaveClear = false;
+    bool m_betweenWaves = false;
     int m_castleMinCol = 0;
     int m_castleMaxCol = 0;
     int m_castleMinRow = 0;

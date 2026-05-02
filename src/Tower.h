@@ -82,7 +82,7 @@ class Tower {
         return activeArcher.getTransform().transformPoint({120.f, 100.f});
     }
 
-    static constexpr float kArrowSpeed = 400.f;
+    static constexpr float kArrowSpeed = 540.f;
 
   private:
     static sf::Vector2f computeAimDirection(sf::Vector2f enemyPos, sf::Vector2f enemyVel,
@@ -113,7 +113,7 @@ class Tower {
     static constexpr float kArcherScale = 0.6f;
     static constexpr float kArcherYOffset = 40.f;
     static constexpr float kRange = 192.f;
-    static constexpr float kCooldown = 1.5f;
+    static constexpr float kCooldown = 1.3f;
     static constexpr float kShootFrameDuration = 0.08f;
 
     TowerKind m_kind;

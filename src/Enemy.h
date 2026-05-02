@@ -7,15 +7,16 @@
 class Enemy {
   public:
     Enemy(const sf::Texture& runTexture, const sf::Texture& attackTexture, sf::Vector2f startPos,
-          std::vector<sf::Vector2f> waypoints)
+          std::vector<sf::Vector2f> waypoints, int maxHp = kDefaultHp)
         : m_sprite(runTexture), m_runTexture(&runTexture), m_attackTexture(&attackTexture),
-          m_waypoints(std::move(waypoints)), m_pos(startPos), m_startPos(startPos) {
+          m_waypoints(std::move(waypoints)), m_pos(startPos), m_startPos(startPos),
+          m_maxHp(maxHp), m_hp(maxHp) {
         setFrame(0);
         m_sprite.setOrigin({kFrameSize / 2.f, kFrameSize / 2.f});
     }
 
     void reset() {
-        m_hp = kMaxHp;
+        m_hp = m_maxHp;
         m_wpIdx = 0;
         m_pos = m_startPos;
         m_animFrame = 0;
@@ -115,12 +116,11 @@ class Enemy {
     bool isDead() const {
         return m_hp <= 0;
     }
-
   private:
     static constexpr int kFrameSize = 192;
     static constexpr int kRunFrames = 6;
     static constexpr int kAttackFrames = 4;
-    static constexpr int kMaxHp = 3;
+    static constexpr int kDefaultHp = 2;
     static constexpr float kSpeed = 150.f;
     static constexpr float kRunFrameDuration = 0.1f;
     static constexpr float kAttackFrameDuration = 0.12f;
@@ -135,7 +135,8 @@ class Enemy {
     std::vector<sf::Vector2f> m_waypoints;
     sf::Vector2f m_pos;
     sf::Vector2f m_startPos;
-    int m_hp = kMaxHp;
+    int m_maxHp = kDefaultHp;
+    int m_hp = kDefaultHp;
     int m_wpIdx = 0;
     int m_animFrame = 0;
     float m_animTimer = 0.f;

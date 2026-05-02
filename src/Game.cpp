@@ -40,7 +40,40 @@ std::vector<sf::Vector2f> enemyWaypoints() {
     return {tileCenter(10, 2), tileCenter(10, 6), tileCenter(17, 6)};
 }
 
-constexpr float kSpawnDelay = 1.f;
+struct Wave {
+    int enemies;
+    int enemyHp;
+    float spawnDelay;
+    float rest;
+    int reward;
+};
+
+constexpr int kArcherCost = 25;
+constexpr int kBarracksCost = 40;
+constexpr int kEnemyReward = 5;
+
+constexpr Wave kWaves[] = {
+    {1, 2, 1.35f, 3.0f, 10},
+    {2, 2, 1.20f, 3.0f, 10},
+    {4, 2, 1.00f, 3.0f, 10},
+    {4, 3, 0.90f, 3.2f, 15},
+    {6, 3, 0.80f, 3.0f, 15},
+    {8, 4, 0.70f, 2.8f, 20},
+    {10, 5, 0.60f, 2.5f, 20},
+    {12, 6, 0.55f, 2.2f, 25},
+    {14, 6, 0.50f, 1.8f, 25},
+    {16, 8, 0.45f, 1.5f, 30},
+};
+
+Wave waveConfig(int wave) {
+    constexpr int authoredWaves = sizeof(kWaves) / sizeof(kWaves[0]);
+    if (wave <= authoredWaves)
+        return kWaves[wave - 1];
+
+    int extra = wave - authoredWaves;
+    return {16 + extra * 3, 8 + extra, 0.42f, 1.2f, 30 + extra * 5};
+}
+
 constexpr float kArrowHitRadius = 20.f;
 constexpr float kGuardHitRadius = 88.f;
 constexpr float kGuardScale = 0.62f;
@@ -48,9 +81,6 @@ constexpr float kGuardStrikeDelay = 0.8f;
 constexpr float kGuardBlockDuration = 0.45f;
 constexpr float kGuardAnimFrameDuration = 0.09f;
 constexpr float kGuardIdleFrameDuration = 0.16f;
-constexpr int kArcherCost = 25;
-constexpr int kBarracksCost = 40;
-constexpr int kEnemyReward = 10;
 constexpr int kGuardIdleFrames = 8;
 constexpr int kGuardAttackFrames = 4;
 constexpr sf::Vector2f kArcherSlotPosition{12.f, 676.f};
@@ -156,13 +186,13 @@ Game::Game()
     : m_window(sf::VideoMode({cfg::windowWidth, cfg::windowHeight}), "Tower Defense"), m_assets(),
       m_grass(m_assets.grass), m_path(m_assets.path), m_castle(m_assets.castle),
       m_preview(m_assets.tower), m_goldIcon(m_assets.goldIcon), m_goldText(m_assets.uiFont, "", 24),
+      m_waveText(m_assets.uiFont, "", 24),
       m_archerCard(m_assets.shopCard), m_barracksCard(m_assets.shopCard),
       m_archerIcon(m_assets.tower), m_barracksIcon(m_assets.barracks),
       m_archerCostIcon(m_assets.goldIcon), m_barracksCostIcon(m_assets.goldIcon),
       m_archerCostText(m_assets.uiFont, std::to_string(kArcherCost), 14),
       m_barracksCostText(m_assets.uiFont, std::to_string(kBarracksCost), 14),
-      m_hpBar(m_assets.hpBarBase, m_assets.hpBarFill), m_castleHp(cfg::castleMaxHp),
-      m_spawnTimer(kSpawnDelay) {
+      m_hpBar(m_assets.hpBarBase, m_assets.hpBarFill), m_castleHp(cfg::castleMaxHp) {
     m_window.setVerticalSyncEnabled(true);
     m_window.setFramerateLimit(60);
 
@@ -186,6 +216,12 @@ Game::Game()
     m_goldText.setOutlineThickness(2.f);
     m_goldText.setPosition({216.f, 8.f});
     updateGoldText();
+
+    m_waveText.setFillColor(sf::Color(245, 245, 220));
+    m_waveText.setOutlineColor(sf::Color(45, 25, 12));
+    m_waveText.setOutlineThickness(2.f);
+    m_waveText.setPosition({cfg::windowWidth - 130.f, 8.f});
+    updateWaveText();
 
     m_archerCard.setScale({0.5f, 0.5f});
     m_barracksCard.setScale({0.5f, 0.5f});
@@ -378,18 +414,51 @@ void Game::draw() {
     m_hpBar.draw(m_window);
     m_window.draw(m_goldIcon);
     m_window.draw(m_goldText);
+    m_window.draw(m_waveText);
     drawShop();
     m_window.display();
 }
 
 void Game::spawnEnemies(float dt) {
+    Wave wave = waveConfig(m_wave);
+
+    if (m_waitingForWaveClear) {
+        if (!m_enemies.empty())
+            return;
+
+        m_waitingForWaveClear = false;
+        m_betweenWaves = true;
+        m_spawnTimer = 0.f;
+        return;
+    }
+
     m_spawnTimer += dt;
-    if (m_spawnTimer < kSpawnDelay)
+
+    if (m_betweenWaves) {
+        if (m_spawnTimer < wave.rest)
+            return;
+
+        m_wave++;
+        wave = waveConfig(m_wave);
+        m_waveEnemiesLeft = wave.enemies;
+        m_spawnTimer = 0.f;
+        m_betweenWaves = false;
+        m_gold += wave.reward;
+        updateGoldText();
+        updateShopUi();
+        updateWaveText();
+    }
+
+    if (m_waveEnemiesLeft <= 0 || m_spawnTimer < wave.spawnDelay)
         return;
 
     m_spawnTimer = 0.f;
+    m_waveEnemiesLeft--;
+    if (m_waveEnemiesLeft == 0)
+        m_waitingForWaveClear = true;
+
     m_enemies.emplace_back(m_assets.enemyRun, m_assets.enemyAttack, tileCenter(0, 2),
-                           enemyWaypoints());
+                           enemyWaypoints(), wave.enemyHp);
 }
 
 void Game::updateGuards(float dt) {
@@ -439,6 +508,10 @@ bool Game::canPlaceTower(int col, int row) const {
 
 void Game::updateGoldText() {
     m_goldText.setString(std::to_string(m_gold));
+}
+
+void Game::updateWaveText() {
+    m_waveText.setString("Wave " + std::to_string(m_wave));
 }
 
 bool Game::handleShopClick(sf::Vector2f click) {
